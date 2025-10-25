@@ -29,19 +29,27 @@ A powerful and flexible Python library for advanced DOCX document processing wit
 
 ## 📦 Installation
 
-### Basic Installation
+> **Note**: This package is currently in development and not yet published to PyPI.
+
+### Development Installation
+
+#### From Source (Current Method)
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/docx-processor.git
+cd docx-processor
+
 # Install with uv (recommended)
-uv add docx-processor
+uv pip install -e .
 
 # Or with pip
-pip install docx-processor
+pip install -e .
 ```
 
-### With Enhanced Features
+#### With Enhanced Features
 ```bash
-# Includes PyMuPDF for PDF processing and LibreOffice integration
-uv add "docx-processor[enhanced]"
+# Install with enhanced dependencies (PyMuPDF for PDF processing)
+uv pip install -e .[enhanced]
 
 # Don't forget to install LibreOffice for PDF conversion features:
 # Ubuntu/Debian: sudo apt-get install libreoffice
@@ -49,27 +57,61 @@ uv add "docx-processor[enhanced]"
 # Windows: Download from https://www.libreoffice.org/
 ```
 
-### All Features
+#### All Features
 ```bash
 # Install everything (all optional dependencies)
-uv add "docx-processor[all]"
+uv pip install -e .[all]
+```
+
+### Future PyPI Installation (Coming Soon)
+Once published to PyPI, you'll be able to install with:
+```bash
+# Will be available after PyPI publication
+pip install docx-processor
+pip install "docx-processor[enhanced]"
+```
+
+### Quick Development Setup
+```bash
+# Clone and setup for development
+git clone https://github.com/bms-corp/docgen-repo.git
+cd docgen-repo/docx-processor
+
+# Install dependencies
+uv pip install -e .[enhanced]
+
+# Test the installation
+uv run docx-processor info
+
+# Process a document (if you have a sample DOCX file)
+uv run docx-processor process your-document.docx --output ./output --verbose
 ```
 
 ## 🔧 Quick Start
 
 ### Command Line Interface
 
+#### Development Usage (Current)
 ```bash
-# Basic processing (headers/footers, endnotes, images, tables)
-docx-processor process document.docx --output ./output
+# Run from source directory using uv
+cd docx-processor
+uv run docx-processor process document.docx --output ./output
 
 # Enhanced processing with HTML generation
-docx-processor process document.docx --output ./output --mode enhanced --html
+uv run docx-processor process document.docx --output ./output --mode enhanced --html
 
-# Enhanced processing with PDF conversion and page screenshots
-docx-processor process document.docx --output ./output --mode enhanced --pdf --screenshots
+# Enhanced processing with PDF conversion and page screenshots  
+uv run docx-processor process document.docx --output ./output --mode enhanced --pdf --screenshots
 
 # Check dependency status
+uv run docx-processor info
+```
+
+#### Future Usage (After PyPI Publication)
+```bash
+# Will work after pip/uv installation
+docx-processor process document.docx --output ./output
+docx-processor process document.docx --output ./output --mode enhanced --html
 docx-processor info
 ```
 
@@ -167,7 +209,24 @@ pytest
 pytest --cov=docx_processor --cov-report=html
 ```
 
-## 📄 License
+## � Publishing to PyPI
+
+When ready to publish this package:
+
+```bash
+# Build the package
+uv build
+
+# Upload to PyPI (requires PyPI account and API token)
+uv publish
+
+# Or for testing on Test PyPI first
+uv publish --repository testpypi
+```
+
+Make sure to update the repository URLs in `pyproject.toml` before publishing.
+
+## �📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 

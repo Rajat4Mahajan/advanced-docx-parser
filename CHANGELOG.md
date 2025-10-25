@@ -8,23 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project structure
-- Basic DOCX processing with python-docx
-- Hierarchical content extraction
-- Image and table extraction
-- Command-line interface
-- Support for three processing modes (basic, enhanced, professional)
-- Modular architecture with optional dependencies
+- Enhanced mode with LibreOffice integration
+- PDF conversion capabilities (requires LibreOffice)
+- Page screenshot generation using PyMuPDF
+- HTML export functionality
+- Headers and footers processing
+- Endnotes extraction and processing
+- Graceful fallback when LibreOffice unavailable
+- Development installation instructions
 
 ### Changed
-
-### Deprecated
+- Simplified architecture from three-tier to two-tier (Basic/Enhanced)
+- Updated documentation for development installation
+- Enhanced CLI with new feature flags
 
 ### Removed
-
-### Fixed
+- Professional mode and Aspose dependencies
+- Hardcoded dependency references
 
 ### Security
+- Removed potential license key exposure paths
+- Clean dependency management
 
 ## [0.1.0] - 2025-10-25
 

@@ -68,11 +68,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/docx-processor"
-Documentation = "https://docx-processor.readthedocs.io"
-Repository = "https://github.com/yourusername/docx-processor"
-"Bug Tracker" = "https://github.com/yourusername/docx-processor/issues"
-Changelog = "https://github.com/yourusername/docx-processor/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/bms-corp/docgen-repo"
+Documentation = "https://github.com/bms-corp/docgen-repo/tree/main/docx-processor"
+Repository = "https://github.com/bms-corp/docgen-repo"
+"Bug Tracker" = "https://github.com/bms-corp/docgen-repo/issues"
+Changelog = "https://github.com/bms-corp/docgen-repo/blob/main/docx-processor/CHANGELOG.md"
 
 [project.scripts]
 docx-processor = "docx_processor.cli:main"
