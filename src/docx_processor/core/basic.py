@@ -11,11 +11,12 @@ from typing import Dict, List, Optional, Tuple, Any
 from io import BytesIO
 
 from docx import Document
-from docx.table import Table
+from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from docx.oxml.ns import qn
 from PIL import Image
 import re
+import html
 
 from ..models import (
     ProcessingResult, ProcessingConfig, ProcessingMode,
@@ -47,7 +48,6 @@ class BasicProcessor:
         """
         self.config = config
         self.logger = logger
-        self.image_count = 0
     
     def process(self, file_path: Path, config: ProcessingConfig) -> ProcessingResult:
         """
@@ -294,36 +294,83 @@ class BasicProcessor:
     
     def _table_to_html(self, table: Table) -> str:
         """
-        Convert a DOCX table to HTML representation.
-        Simplified version of your original method.
+        Convert a DOCX table to HTML representation with advanced styling.
+        Based on the original DOCXProcessor.table_to_html method.
         """
         try:
+            def rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
+                if rgb is None:
+                    return None
+                return '#{:02x}{:02x}{:02x}'.format(rgb[0], rgb[1], rgb[2])
+
+            def get_cell_style(cell: _Cell) -> str:
+                style = "border: 1px solid black; padding: 5px;"
+                if cell.vertical_alignment:
+                    style += f"vertical-align:{cell.vertical_alignment};"
+                if cell._tc.tcPr.tcW is not None:
+                    width = cell._tc.tcPr.tcW.w
+                    if width is not None:
+                        style += f"width:{width / 15}pt;"
+                if cell.paragraphs and cell.paragraphs[0].runs:
+                    run = cell.paragraphs[0].runs[0]
+                    if run.font.color.rgb is not None:
+                        color = rgb_to_hex(run.font.color.rgb)
+                        if color:
+                            style += f"color:{color};"
+                    if run.font.size is not None:
+                        style += f"font-size:{run.font.size.pt}pt;"
+                    if run.font.bold:
+                        style += "font-weight:bold;"
+                    if run.font.italic:
+                        style += "font-style:italic;"
+                return style
+
+            def get_paragraph_style(paragraph: Paragraph) -> str:
+                style = ""
+                if paragraph.alignment:
+                    style += f"text-align:{paragraph.alignment};"
+                if paragraph.style:
+                    if paragraph.style.font.color.rgb is not None:
+                        color = rgb_to_hex(paragraph.style.font.color.rgb)
+                        if color:
+                            style += f"color:{color};"
+                    if paragraph.style.font.size is not None:
+                        style += f"font-size:{paragraph.style.font.size.pt}pt;"
+                return style
+
             html_output = "<table style='border-collapse: collapse; border: 1px solid black;'>"
-            
+
             # Table header
             if table.rows:
                 html_output += "<thead><tr>"
                 for cell in table.rows[0].cells:
-                    html_output += f"<th style='border: 1px solid black; padding: 5px;'>"
+                    cell_style = get_cell_style(cell)
+                    html_output += f"<th style='{cell_style}'>"
                     for para in cell.paragraphs:
-                        html_output += f"<p>{para.text}</p>"
+                        para_style = get_paragraph_style(para)
+                        html_output += f"<p style='{para_style}'>{html.escape(para.text)}</p>"
                     html_output += "</th>"
                 html_output += "</tr></thead>"
-            
+
             # Table body
             html_output += "<tbody>"
-            for row in table.rows[1:]:
+            for row in table.rows[1:]:  # Start from the second row
                 html_output += "<tr>"
                 for cell in row.cells:
-                    html_output += f"<td style='border: 1px solid black; padding: 5px;'>"
+                    cell_style = get_cell_style(cell)
+                    html_output += f"<td style='{cell_style}'>"
                     for para in cell.paragraphs:
-                        html_output += f"<p>{para.text}</p>"
+                        para_style = get_paragraph_style(para)
+                        if para.style and 'Bullets' in para.style.name:
+                            html_output += f"<ul style='{para_style}'><li>{html.escape(para.text)}</li></ul>"
+                        else:
+                            html_output += f"<p style='{para_style}'>{html.escape(para.text)}</p>"
                     html_output += "</td>"
                 html_output += "</tr>"
             html_output += "</tbody>"
             html_output += "</table>"
             
-            return html_output
+            return html_output   
         except Exception as e:
             self.logger.error(f"Error converting table to HTML: {e}")
             return f"<p>Error processing table: {e}</p>"
@@ -349,29 +396,76 @@ class BasicProcessor:
         return toc
     
     def _extract_images(self, doc: Document, image_sections: List[str], output_dir: Optional[Path]) -> Dict[str, ImageInfo]:
-        """Extract images from the document."""
+        """
+        Extract images from the document with advanced processing.
+        Based on the original DOCXProcessor.extract_images method.
+        """
         images_dict = {}
+        section_image_mapping = {}
+        image_count = 1
         
         try:
+            # Extract images from different formats: blips, VML, flowcharts
             for element in doc.element.body.iter():
                 if element.tag == qn('w:drawing'):
                     for child in element.iter():
                         if child.tag == qn('a:blip'):
-                            image_info = self._extract_blip_image(child, doc, output_dir)
+                            image_info = self._extract_blip_image(child, doc, output_dir, image_count)
                             if image_info:
                                 images_dict[image_info.filename] = image_info
+                                image_count += 1
+                        
+                        elif child.tag == qn("wp:anchor"):
+                            # Handle flowchart images (simplified - would need external processor)
+                            self.logger.debug("Flowchart image detected but skipped in basic mode")
+                
+                # Handle VML images
+                if element.tag == "{urn:schemas-microsoft-com:vml}imagedata":
+                    image_info = self._extract_vml_image(element, doc, output_dir, image_count)
+                    if image_info:
+                        images_dict[image_info.filename] = image_info
+                        image_count += 1
+                        
+            # Map images to their sections based on order
+            section_index = 0
+            for filename, image_info in images_dict.items():
+                if section_index < len(image_sections):
+                    section_title = image_sections[section_index]
+                    if section_title not in section_image_mapping:
+                        section_image_mapping[section_title] = []
+                    section_image_mapping[section_title].append(filename)
+                    # Update image_info with section mapping
+                    image_info.section = section_title
+                    section_index += 1
+                    
+            self.logger.info(f"Successfully extracted {len(images_dict)} images from document")
+            
         except Exception as e:
             self.logger.error(f"Error extracting images: {e}")
         
         return images_dict
     
-    def _extract_blip_image(self, blip_child, doc: Document, output_dir: Optional[Path]) -> Optional[ImageInfo]:
-        """Extract a single blip image."""
+    def _extract_blip_image(self, blip_child, doc: Document, output_dir: Optional[Path], image_count: int) -> Optional[ImageInfo]:
+        """
+        Extract a single blip image with advanced processing including cropping.
+        Based on the original DOCXProcessor._extract_blips method.
+        """
         try:
             rId = blip_child.attrib[qn('r:embed')]
-            image = doc.part.related_parts[rId]
-            image_filename = f"image_{self.image_count}.{image.content_type.split('/')[-1]}"
-            image_bytes = image.blob
+            image_part = doc.part.related_parts[rId]
+            
+            # Get image format
+            content_type = image_part.content_type
+            file_extension = content_type.split('/')[-1] if '/' in content_type else 'png'
+            
+            # Generate filename
+            image_filename = f"image_{image_count}.{file_extension}"
+            
+            # Get original image bytes
+            image_bytes = image_part.blob
+            
+            # Apply auto-cropping if srcRect is present
+            processed_image_bytes = self._apply_auto_cropping(blip_child, image_bytes)
             
             # Save image if output directory is provided
             if output_dir:
@@ -379,26 +473,149 @@ class BasicProcessor:
                 images_dir.mkdir(parents=True, exist_ok=True)
                 image_path = images_dir / image_filename
                 with open(image_path, "wb") as f:
-                    f.write(image_bytes)
+                    f.write(processed_image_bytes)
             
             # Get image dimensions
             try:
-                img = Image.open(BytesIO(image_bytes))
+                img = Image.open(BytesIO(processed_image_bytes))
                 width, height = img.size
             except:
                 width, height = None, None
             
-            self.image_count += 1
-            
             return ImageInfo(
                 filename=image_filename,
-                size_bytes=len(image_bytes),
+                size_bytes=len(processed_image_bytes),
                 width=width,
                 height=height,
-                format=image.content_type.split('/')[-1]
+                format=file_extension.upper()
             )
+            
+        except KeyError:
+            self.logger.error(f"Image with rId {rId} not found.")
+            return None
         except Exception as e:
             self.logger.error(f"Error extracting blip image: {e}")
+            return None
+    
+    def _apply_auto_cropping(self, blip_element, image_bytes: bytes) -> bytes:
+        """
+        Apply cropping to an image based on the srcRect information in the DOCX element.
+        
+        The srcRect element defines cropping as percentages in thousandths of a percent:
+        - l: left crop percentage (distance from left edge)
+        - t: top crop percentage (distance from top edge)  
+        - r: right crop percentage (distance from right edge)
+        - b: bottom crop percentage (distance from bottom edge)
+        """
+        try:
+            # Look for srcRect element in the parent blipFill element
+            blip_fill = blip_element.getparent()
+            if blip_fill is None:
+                return image_bytes
+                
+            # Find srcRect element within the blipFill
+            src_rect = None
+            for child in blip_fill:
+                if child.tag == qn('a:srcRect'):
+                    src_rect = child
+                    break
+            
+            if src_rect is None:
+                return image_bytes
+                
+            # Extract crop percentages from srcRect attributes
+            # Values are in thousandths of a percent (divide by 1000 to get percentage)
+            left_crop = float(src_rect.get('l', '0')) / 1000.0
+            top_crop = float(src_rect.get('t', '0')) / 1000.0
+            right_crop = float(src_rect.get('r', '0')) / 1000.0
+            bottom_crop = float(src_rect.get('b', '0')) / 1000.0
+            
+            # If no cropping is specified, return original image
+            if left_crop == 0 and top_crop == 0 and right_crop == 0 and bottom_crop == 0:
+                return image_bytes
+                
+            self.logger.info(f"Applying srcRect cropping: left={left_crop}%, top={top_crop}%, right={right_crop}%, bottom={bottom_crop}%")
+            
+            # Load image using PIL
+            image = Image.open(BytesIO(image_bytes))
+            original_width, original_height = image.size
+            
+            # Calculate crop coordinates in pixels
+            left_pixels = int((left_crop / 100.0) * original_width)
+            top_pixels = int((top_crop / 100.0) * original_height)
+            right_pixels = original_width - int((right_crop / 100.0) * original_width)
+            bottom_pixels = original_height - int((bottom_crop / 100.0) * original_height)
+            
+            # Ensure coordinates are within image bounds
+            left_pixels = max(0, min(left_pixels, original_width))
+            top_pixels = max(0, min(top_pixels, original_height))
+            right_pixels = max(left_pixels, min(right_pixels, original_width))
+            bottom_pixels = max(top_pixels, min(bottom_pixels, original_height))
+            
+            self.logger.debug(f"Cropping image from ({left_pixels}, {top_pixels}) to ({right_pixels}, {bottom_pixels})")
+            
+            # Crop the image
+            cropped_image = image.crop((left_pixels, top_pixels, right_pixels, bottom_pixels))
+            
+            # Convert back to bytes
+            output_buffer = BytesIO()
+            format = image.format if image.format else 'PNG'
+            cropped_image.save(output_buffer, format=format)
+            cropped_bytes = output_buffer.getvalue()
+            
+            self.logger.info(f"Successfully cropped image from {original_width}x{original_height} to {cropped_image.size[0]}x{cropped_image.size[1]}")
+            
+            return cropped_bytes
+            
+        except Exception as e:
+            self.logger.error(f"Error applying srcRect cropping: {e}")
+            return image_bytes
+    
+    def _extract_vml_image(self, vml_element, doc: Document, output_dir: Optional[Path], image_count: int) -> Optional[ImageInfo]:
+        """
+        Extract VML image data from a DOCX element.
+        Simplified version - full VML processing would require LibreOffice conversion.
+        """
+        try:
+            rId = vml_element.attrib[qn("r:id")]
+            image_part = doc.part.related_parts[rId]
+            
+            if image_part.content_type == "image/x-emf":
+                # EMF images would need conversion (LibreOffice or similar)
+                # For now, we'll skip EMF images in basic mode
+                self.logger.debug("EMF image detected but skipped in basic mode (requires LibreOffice conversion)")
+                return None
+            else:
+                # Handle regular image formats
+                file_extension = image_part.content_type.split('/')[-1] if '/' in image_part.content_type else 'png'
+                image_filename = f"image_{image_count}.{file_extension}"
+                image_bytes = image_part.blob
+                
+                # Save image if output directory is provided
+                if output_dir:
+                    images_dir = output_dir / "images"
+                    images_dir.mkdir(parents=True, exist_ok=True)
+                    image_path = images_dir / image_filename
+                    with open(image_path, "wb") as f:
+                        f.write(image_bytes)
+                
+                # Get image dimensions
+                try:
+                    img = Image.open(BytesIO(image_bytes))
+                    width, height = img.size
+                except:
+                    width, height = None, None
+                
+                return ImageInfo(
+                    filename=image_filename,
+                    size_bytes=len(image_bytes),
+                    width=width,
+                    height=height,
+                    format=file_extension.upper()
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Error extracting VML image: {e}")
             return None
     
     def _process_tables(self, table_dict: Dict[str, str], output_dir: Optional[Path]) -> Dict[str, TableInfo]:
