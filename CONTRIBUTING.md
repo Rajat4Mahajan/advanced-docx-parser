@@ -117,8 +117,7 @@ pytest -m "not slow"
 docx-processor/
 ├── src/docx_processor/          # Main package
 │   ├── core/                    # Basic processing (pure python-docx)
-│   ├── enhanced/                # Enhanced features (LibreOffice)
-│   ├── professional/            # Professional features (Aspose)
+│   ├── enhanced/                # Enhanced features (LibreOffice + PyMuPDF)
 │   ├── utils/                   # Utility modules
 │   ├── models.py                # Data models
 │   ├── exceptions.py            # Custom exceptions
@@ -133,9 +132,8 @@ docx-processor/
 
 The project is designed to support different processing tiers:
 
-1. **Basic Mode** (`core/`): Pure python-docx processing
-2. **Enhanced Mode** (`enhanced/`): Adds LibreOffice integration
-3. **Professional Mode** (`professional/`): Adds Aspose.Words features
+1. **Basic Mode** (`core/`): Pure python-docx processing with headers/footers and endnotes
+2. **Enhanced Mode** (`enhanced/`): Adds LibreOffice integration, PyMuPDF, and HTML export
 
 To add features to a specific mode:
 
@@ -160,8 +158,8 @@ To add features to a specific mode:
 
 ### Mocking External Dependencies
 - Mock LibreOffice calls in enhanced mode tests
-- Mock Aspose.Words calls in professional mode tests
-- Use `pytest-mock` for mocking
+- Mock PyMuPDF operations for page processing tests  
+- Use `pytest-mock` for mocking external dependencies
 
 ## Documentation
 

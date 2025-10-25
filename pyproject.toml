@@ -49,11 +49,6 @@ enhanced = [
     "pymupdf>=1.23.0",
 ]
 
-# Professional features with Aspose (requires license)
-professional = [
-    "aspose-words>=23.0.0",
-]
-
 # Development dependencies (simplified for initial setup)
 dev = [
     "pytest>=7.0.0",
@@ -69,7 +64,7 @@ docs = [
 
 # All optional dependencies
 all = [
-    "docx-processor[enhanced,professional,dev,docs]"
+    "docx-processor[enhanced,dev,docs]"
 ]
 
 [project.urls]

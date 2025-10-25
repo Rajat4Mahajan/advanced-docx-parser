@@ -20,18 +20,6 @@ wheels = [
 ]
 
 [[package]]
-name = "aspose-words"
-version = "25.10.0"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/38/1fe126898610eb7cdec7751ebfa18646af092a84ba3c6866f1272414781d/aspose_words-25.10.0-py3-none-macosx_10_14_x86_64.whl", hash = "sha256:c07f06869f92e179dea080b6f13789f0bf163241778edaf70808d966cb388f02", size = 86592054, upload-time = "2025-10-08T12:01:19.143Z" },
-    { url = "https://files.pythonhosted.org/packages/56/20/62a1b04c15947034cffba3e665b836ff91f8e8c7f9fc02d9d89266984484/aspose_words-25.10.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:0aa241b011f24611e219b9795bb04d87e3cc6b31bcd51c2e9e7838f3cc48d9c1", size = 72765470, upload-time = "2025-10-08T12:01:28.78Z" },
-    { url = "https://files.pythonhosted.org/packages/af/e3/3666dca0e461cb6bb29b5944f2798f1f74967849de2ec0e2fbd7e1909a44/aspose_words-25.10.0-py3-none-manylinux1_x86_64.whl", hash = "sha256:86063b27f99378b174f818877effcca4322acb00f0814386f7bc2d041ae3ce4e", size = 90479681, upload-time = "2025-10-08T12:01:39.059Z" },
-    { url = "https://files.pythonhosted.org/packages/b1/8a/b3d7ad31c88488969e154854bfa0d5462c18e70818b0648a1cf781f10bf3/aspose_words-25.10.0-py3-none-win32.whl", hash = "sha256:760af8c011c76309d55e8f4b09bf89901c72a68a6465f2344395d2322c75e41d", size = 59134360, upload-time = "2025-10-08T12:01:47.305Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/22/c6f300f0dbc9fec1fbc1ae4ed57a7cfbeee5e5ef005a25a0aad6d6f1e1f7/aspose_words-25.10.0-py3-none-win_amd64.whl", hash = "sha256:4e1a1e1fc19f10062875d14ff400621ed9eac7906093c85c4fde518acf5dd473", size = 67066456, upload-time = "2025-10-08T12:10:52.769Z" },
-]
-
-[[package]]
 name = "astunparse"
 version = "1.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -609,7 +597,6 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "aspose-words" },
     { name = "mkdocs" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", version = "0.26.1", source = { registry = "https://pypi.org/simple" }, extra = ["python"], marker = "python_full_version < '3.9'" },
@@ -637,15 +624,11 @@ enhanced = [
     { name = "pymupdf", version = "1.24.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pymupdf", version = "1.26.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
-professional = [
-    { name = "aspose-words" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "aspose-words", marker = "extra == 'professional'", specifier = ">=23.0.0" },
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
-    { name = "docx-processor", extras = ["enhanced", "professional", "dev", "docs"], marker = "extra == 'all'" },
+    { name = "docx-processor", extras = ["enhanced", "dev", "docs"], marker = "extra == 'all'" },
     { name = "fuzzywuzzy", specifier = ">=0.18.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.0.0" },
@@ -660,7 +643,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
-provides-extras = ["enhanced", "professional", "dev", "docs", "all"]
+provides-extras = ["enhanced", "dev", "docs", "all"]
 
 [[package]]
 name = "exceptiongroup"

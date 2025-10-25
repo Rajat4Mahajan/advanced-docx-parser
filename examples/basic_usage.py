@@ -120,35 +120,37 @@ def enhanced_processing_example():
         return None
 
 
-def professional_processing_example():
-    """Example of professional DOCX processing with Aspose.Words features."""
+def extended_enhanced_example():
+    """Example showing all enhanced features including HTML generation."""
     
     try:
-        # Initialize processor in professional mode  
-        processor = DOCXProcessor(mode=ProcessingMode.PROFESSIONAL)
+        from docx_processor import ProcessingConfig
+        
+        # Configure enhanced processing with all features
+        config = ProcessingConfig(
+            mode="enhanced",
+            generate_html=True,
+            convert_to_pdf=True,  # Requires LibreOffice
+            generate_page_screenshots=True  # Requires LibreOffice
+        )
+        
+        processor = DOCXProcessor(mode="enhanced", config=config)
         
         input_file = Path("sample_document.docx")
-        output_dir = Path("./professional_output")
+        output_dir = Path("./extended_enhanced_output")
         
         if input_file.exists():
-            print(f"Processing {input_file} with professional features...")
+            print(f"Processing {input_file} with all enhanced features...")
             
-            result = processor.process_file(
-                input_file,
-                output_dir=output_dir,
-                standardize_headings=True,
-                preserve_formatting=True,
-                generate_html=True,
-                process_citations=True
-            )
+            result = processor.process_file(input_file, output_dir=output_dir)
             
-            print(f"✓ Professional processing completed!")
+            print(f"✓ Extended enhanced processing completed!")
             
             if result.html_content:
-                print(f"  - Generated HTML output with preserved formatting")
+                print(f"  - Generated HTML content")
             
-            if result.html_content_hierarchy:
-                print(f"  - Created hierarchical HTML content structure")
+            if result.page_screenshots:
+                print(f"  - Created page screenshots: {len(result.page_screenshots)} pages")
             
             return result
         
@@ -157,9 +159,8 @@ def professional_processing_example():
             return None
     
     except Exception as e:
-        print(f"Professional processing failed: {e}")
-        print("This likely means Aspose.Words license or dependencies are missing.")
-        print("Install with: pip install 'docx-processor[professional]'")
+        print(f"Extended enhanced processing failed: {e}")
+        print("Note: Some features require LibreOffice to be installed")
         return None
 
 
@@ -178,11 +179,11 @@ if __name__ == "__main__":
         print("-" * 35)
         enhanced_result = enhanced_processing_example()
         
-        # Run professional example if enhanced worked
+        # Run extended enhanced example if enhanced worked
         if enhanced_result:
-            print("\n3. Professional Processing Example:")
-            print("-" * 40)
-            professional_result = professional_processing_example()
+            print("\n3. Extended Enhanced Processing Example:")
+            print("-" * 45)
+            extended_result = extended_enhanced_example()
     
     print("\n" + "=" * 50)
     print("Examples completed!")

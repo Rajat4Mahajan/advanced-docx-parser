@@ -51,7 +51,7 @@ uv add "docx-processor[enhanced]"
 
 ### All Features
 ```bash
-# Install everything (requires Aspose license for professional features)
+# Install everything (all optional dependencies)
 uv add "docx-processor[all]"
 ```
 
@@ -175,7 +175,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 This library builds upon the excellent work of:
 - [`python-docx`](https://github.com/python-openxml/python-docx) for core DOCX processing
-- [`Aspose.Words`](https://products.aspose.com/words/python-net/) for advanced document features
+- [`PyMuPDF`](https://pymupdf.readthedocs.io/) for PDF processing and page screenshots
 - [`LibreOffice`](https://www.libreoffice.org/) for document conversion capabilities
 
 ## 📊 Project Status
