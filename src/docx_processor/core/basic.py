@@ -111,14 +111,13 @@ class BasicProcessor:
     
     def _process_document_structure(self, doc: Document) -> Tuple[Dict, Dict, List, Dict, Dict, Any]:
         """
-        Extract the document structure including sections, images, and tables.
+        Extract the document structure with proper hierarchy.
         
-        This is adapted from your original DOCXProcessor.process_docx method.
+        This is adapted from the original DOCXProcessor.process_docx method.
         """
         content_dict = {}
         counters = {}
         table_mapping = {}
-        final_dict = {}
         table_dict = {}
         
         stack = []
@@ -127,146 +126,143 @@ class BasicProcessor:
         current_content = None
         table_count = 1
         
-        self.logger.debug("Processing document structure")
+        self.logger.debug("Processing document structure with hierarchy")
         
-        for block in doc.iter_inner_content():
-            paragraph = None
-            table = None
+        # Process paragraphs and tables together to preserve order
+        # We'll iterate through the document elements in order
+        for paragraph in doc.paragraphs:
+            content = paragraph.text
             
-            if isinstance(block, Paragraph):
-                paragraph = block
-            elif isinstance(block, Table):
-                table = block
+            # Skip empty paragraphs without images
+            image_is_present = self._has_image_in_paragraph(paragraph)
+            if content.strip() == '' and not image_is_present:
+                continue
             
-            if paragraph:
-                content = paragraph.text
-                image_is_present = self._has_image_in_paragraph(paragraph)
+            heading_level = self._get_heading_level(paragraph)
+            
+            if heading_level:
+                # Initialize or reset counters for deeper levels
+                if heading_level not in counters:
+                    counters[heading_level] = 0
+                counters[heading_level] += 1
                 
-                if content.strip() == '' and not image_is_present:
-                    continue
+                # Reset counters for sublevels
+                for level in list(counters.keys()):
+                    if level > heading_level:
+                        counters[level] = 0
                 
-                heading_level = self._get_heading_level(paragraph)
+                # Generate the numbering for the current heading
+                numbering = '.'.join(str(counters[level]) for level in sorted(counters) if counters[level] > 0)
                 
-                if heading_level:
-                    # Handle heading logic (similar to your original code)
-                    if heading_level not in counters:
-                        counters[heading_level] = 0
-                    counters[heading_level] += 1
-                    
-                    # Reset counters for sublevels
-                    for level in list(counters.keys()):
-                        if level > heading_level:
-                            counters[level] = 0
-                    
-                    # Generate numbering
-                    numbering = '.'.join(str(counters[level]) for level in sorted(counters) if counters[level] > 0)
-                    
-                    if current_content is not None:
-                        content_dict[current_content["title"]] = current_content
-                    
-                    # Determine parent
-                    parent = None
-                    if stack:
-                        if stack[-1]["level"] < heading_level:
-                            parent = stack[-1]["title"]
-                        elif stack[-1]["level"] == heading_level:
-                            parent = stack[-1]['parent']
-                        else:
-                            while stack and stack[-1]["level"] >= heading_level:
-                                stack.pop()
-                            parent = stack[-1]["title"] if stack else None
-                    
-                    # Create title with numbering
-                    pattern = r'^\s*\d+(\.\d+)*\.?\s*'
-                    if re.match(pattern, paragraph.text):
-                        title = f"{paragraph.text}"
+                # If we are encountering a new heading level, save the previous content
+                if current_content is not None:
+                    content_dict[current_content["title"]] = current_content
+                
+                # Determine the parent
+                parent = None
+                if stack:
+                    if stack[-1]["level"] < heading_level:
+                        parent = stack[-1]["title"]
+                    elif stack[-1]["level"] == heading_level:
+                        parent = stack[-1]['parent']
                     else:
-                        title = f"{numbering} {paragraph.text}"
-                    
-                    if title.strip() == '':
-                        title = 'Orphaned Section'
-                    
-                    current_content = {
-                        "title": title,
-                        "level": heading_level,
-                        "content": "",
-                        "parent": parent,
-                        "children": []
-                    }
-                    
-                    # Manage stack for hierarchy
-                    while stack and stack[-1]["level"] >= heading_level:
-                        stack.pop()
-                    
-                    if parent:
-                        content_dict[parent]["children"].append(current_content["title"])
-                    
-                    stack.append({"title": current_content["title"], "level": heading_level, "parent": parent})
-                    
+                        while stack and stack[-1]["level"] >= heading_level:
+                            stack.pop()
+                        parent = stack[-1]["title"] if stack else None
+                
+                # Create title with numbering if needed
+                pattern = r'^\s*\d+(\.\d+)*\.?\s*'
+                if re.match(pattern, paragraph.text):
+                    title = f"{paragraph.text}"
                 else:
-                    # Append content to current heading
-                    if current_content is not None:
-                        current_content["content"] += content + "\n"
-                    else:
-                        current_content = {
-                            "title": 'TITLE PAGE',
-                            "level": 1,
-                            "content": content,
-                            "parent": None,
-                            "children": []
-                        }
+                    title = f"{numbering} {paragraph.text}"
                 
-                if image_is_present:
-                    img_title.append(title)
-            
-            elif table:
-                table_html = self._table_to_html(table)
-                table_file_name = f"table_{table_count}.html"
-                table_dict[table_file_name] = table_html
+                if title.strip() == '':
+                    title = 'Orphaned Section'
                 
-                if title is None:
-                    title = 'TITLE PAGE'
+                current_content = {
+                    "title": title,
+                    "level": heading_level,
+                    "content": "",
+                    "parent": parent,
+                    "children": []
+                }
+                
+                # Manage the stack to handle hierarchy
+                while stack and stack[-1]["level"] >= heading_level:
+                    stack.pop()
+                
+                if parent and parent in content_dict:
+                    content_dict[parent]["children"].append(current_content["title"])
+                
+                stack.append({"title": current_content["title"], "level": heading_level, "parent": parent})
+                
+            else:
+                # Append content to the current heading
+                if current_content is not None:
+                    current_content["content"] += content + "\n"
+                else:
+                    # If we haven't encountered any heading yet, create a title page
                     current_content = {
-                        "title": title,
-                        "level": None,
-                        "content": "Table\n" + table_html + "\n",
+                        "title": 'TITLE PAGE',
+                        "level": 1,
+                        "content": content + "\n",
                         "parent": None,
                         "children": []
                     }
-                else:
-                    current_content["content"] += "Table\n" + table_html + "\n"
+            
+            # Create a dict for the sections that contain images
+            if image_is_present:
+                current_title = current_content["title"] if current_content else 'TITLE PAGE'
+                if current_title not in img_title:
+                    img_title.append(current_title)
+        
+        # Process tables (simplified for now - we'll enhance this later)
+        for table in doc.tables:
+            table_html = self._table_to_html(table)
+            table_file_name = f"table_{table_count}.html"
+            table_dict[table_file_name] = table_html
+            
+            # Add table to current section
+            if current_content is not None:
+                current_content["content"] += f"Table\n{table_html}\n"
                 
-                if title in table_mapping:
-                    table_mapping[title].append(table_file_name)
+                # Track table mapping
+                section_title = current_content["title"]
+                if section_title in table_mapping:
+                    table_mapping[section_title].append(table_file_name)
                 else:
-                    table_mapping[title] = [table_file_name]
-                
-                table_count += 1
+                    table_mapping[section_title] = [table_file_name]
+            
+            table_count += 1
         
         # Append the last content item
         if current_content is not None:
             content_dict[current_content["title"]] = current_content
         
-        # Create content without children first
+        # Create content without children (individual sections only)
         final_dict_without_child = {item["title"]: item["content"] for item in content_dict.values()}
         
-        # Build table of contents
+        # Build table of contents (simplified for now)
         toc = self._build_toc(list(content_dict.values()))
         
-        # Aggregate content from children to parent
+        # Recursive function to aggregate content from children to parent
         def aggregate_content(title: str) -> None:
             item = content_dict[title]
             for child_title in item["children"]:
-                aggregate_content(child_title)
-                item["content"] += content_dict[child_title]["title"] + '\n\n' + content_dict[child_title]["content"]
+                if child_title in content_dict:  # Safety check
+                    aggregate_content(child_title)
+                    item["content"] += f"\n\n{content_dict[child_title]['title']}\n\n{content_dict[child_title]['content']}"
         
-        # Start aggregation from top-level items
+        # Start aggregation from the top-level items
         top_level_titles = [title for title, item in content_dict.items() if item["parent"] is None]
         for title in top_level_titles:
             aggregate_content(title)
         
-        # Prepare final dictionary
+        # Prepare the final dictionary with title as key and combined content as value
         final_dict = {item["title"]: item["content"] for item in content_dict.values()}
+        
+        self.logger.debug(f"Extracted {len(final_dict)} sections with hierarchy")
         
         return final_dict, final_dict_without_child, img_title, table_mapping, table_dict, toc
     
@@ -331,6 +327,26 @@ class BasicProcessor:
         except Exception as e:
             self.logger.error(f"Error converting table to HTML: {e}")
             return f"<p>Error processing table: {e}</p>"
+    
+    def _build_toc(self, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Build a table of contents from section hierarchy."""
+        toc = {}
+        
+        # Sort sections by level to build hierarchy
+        sorted_sections = sorted(sections, key=lambda x: x.get('level', 1))
+        
+        for section in sorted_sections:
+            title = section['title']
+            level = section.get('level', 1)
+            parent = section.get('parent')
+            
+            toc[title] = {
+                'level': level,
+                'parent': parent,
+                'children': section.get('children', [])
+            }
+        
+        return toc
     
     def _extract_images(self, doc: Document, image_sections: List[str], output_dir: Optional[Path]) -> Dict[str, ImageInfo]:
         """Extract images from the document."""
@@ -416,13 +432,14 @@ class BasicProcessor:
         """Build content hierarchy from the content dictionary."""
         hierarchy = {}
         
-        for title, item in content_dict.items():
+        for title, content in content_dict.items():
+            # For now, create simple hierarchy since our content_dict is just title->content
             hierarchy[title] = SectionInfo(
-                title=item["title"],
-                content=item["content"],
-                level=item.get("level", 1),
-                parent=item.get("parent"),
-                children=item.get("children", [])
+                title=title,
+                content=content,
+                level=1,  # Default level
+                parent=None,
+                children=[]
             )
         
         return hierarchy
