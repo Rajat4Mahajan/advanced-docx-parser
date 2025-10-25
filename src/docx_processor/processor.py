@@ -18,9 +18,8 @@ class DOCXProcessor:
     Main processor class for advanced DOCX document processing.
     
     Supports multiple processing modes:
-    - Basic: Pure python-docx processing
-    - Enhanced: Adds LibreOffice integration for PDF conversion and page screenshots
-    - Professional: Adds Aspose.Words for advanced formatting preservation
+    - Basic: Pure python-docx processing with headers/footers and endnotes
+    - Enhanced: Adds LibreOffice integration for PDF conversion, page screenshots, and HTML export
     
     Example:
         >>> processor = DOCXProcessor(mode="enhanced")
@@ -70,17 +69,12 @@ class DOCXProcessor:
         """Validate that required dependencies are available for the selected mode."""
         missing_deps = []
         
-        if self.mode in [ProcessingMode.ENHANCED, ProcessingMode.PROFESSIONAL]:
+        if self.mode == ProcessingMode.ENHANCED:
             try:
                 import fitz  # PyMuPDF
             except ImportError:
-                missing_deps.append("PyMuPDF (for enhanced/professional modes)")
-        
-        if self.mode == ProcessingMode.PROFESSIONAL:
-            try:
-                import aspose.words
-            except ImportError:
-                missing_deps.append("aspose-words (for professional mode)")
+                missing_deps.append("PyMuPDF (for enhanced mode)")
+            # Note: We'll check LibreOffice availability at runtime for graceful fallback
         
         if missing_deps:
             raise DependencyError(
@@ -94,18 +88,11 @@ class DOCXProcessor:
         self.basic_processor = BasicProcessor(config=self.config, logger=self.logger)
         
         # Initialize enhanced processor if needed
-        if self.mode in [ProcessingMode.ENHANCED, ProcessingMode.PROFESSIONAL]:
+        if self.mode == ProcessingMode.ENHANCED:
             from .enhanced import EnhancedProcessor
             self.enhanced_processor = EnhancedProcessor(config=self.config, logger=self.logger)
         else:
             self.enhanced_processor = None
-        
-        # Initialize professional processor if needed
-        if self.mode == ProcessingMode.PROFESSIONAL:
-            from .professional import ProfessionalProcessor
-            self.professional_processor = ProfessionalProcessor(config=self.config, logger=self.logger)
-        else:
-            self.professional_processor = None
     
     def process_file(
         self,
@@ -218,11 +205,10 @@ class DOCXProcessor:
         if self.enhanced_processor is not None:
             self.logger.debug("Starting enhanced processing")
             result = self.enhanced_processor.process(file_path, config, result)
-        
-        # Add professional processing if available  
-        if self.professional_processor is not None:
-            self.logger.debug("Starting professional processing")
-            result = self.professional_processor.process(file_path, config, result)
+            
+            # Save enhanced outputs if output directory is specified
+            if config.output_dir:
+                self.basic_processor._save_outputs(result, config.output_dir, config)
         
         return result
     

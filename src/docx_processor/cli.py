@@ -35,14 +35,10 @@ def process(
     save_content: bool = typer.Option(True, "--content/--no-content", help="Save content files"),
     
     # Enhanced options
-    page_screenshots: bool = typer.Option(False, "--screenshots", help="Generate page screenshots"),
-    page_numbers: bool = typer.Option(False, "--page-numbers", help="Extract page number mappings"),
-    convert_pdf: bool = typer.Option(False, "--pdf", help="Convert to PDF"),
-    
-    # Professional options
-    standardize_headings: bool = typer.Option(False, "--standardize", help="Standardize heading styles"),
-    preserve_formatting: bool = typer.Option(False, "--formatting", help="Preserve advanced formatting"),
-    generate_html: bool = typer.Option(False, "--html", help="Generate HTML output"),
+    page_screenshots: bool = typer.Option(False, "--screenshots", help="Generate page screenshots (Enhanced mode)"),
+    page_numbers: bool = typer.Option(False, "--page-numbers", help="Extract page number mappings (Enhanced mode)"),
+    convert_pdf: bool = typer.Option(False, "--pdf", help="Convert to PDF (Enhanced mode)"),
+    generate_html: bool = typer.Option(False, "--html", help="Generate HTML output (Enhanced mode)"),
     
     # Processing options
     max_pages: Optional[int] = typer.Option(None, "--max-pages", help="Maximum pages to process"),
@@ -77,15 +73,13 @@ def process(
         generate_page_screenshots=page_screenshots,
         extract_page_numbers=page_numbers,
         convert_to_pdf=convert_pdf,
-        standardize_headings=standardize_headings,
-        preserve_formatting=preserve_formatting,
         generate_html=generate_html,
         max_pages_to_process=max_pages,
     )
     
     # Setup logging level
     if verbose:
-        from .utils import setup_logging
+        from .utils.logger import setup_logging
         setup_logging("DEBUG")
     
     try:
@@ -172,17 +166,12 @@ def info():
     modes_table.add_row(
         "basic",
         "python-docx, Pillow, BeautifulSoup4",
-        "Content extraction, images, tables, TOC"
+        "Content extraction, images, tables, TOC, headers/footers, endnotes"
     )
     modes_table.add_row(
         "enhanced", 
         "PyMuPDF, LibreOffice",
-        "Basic + PDF conversion, page screenshots, page numbers"
-    )
-    modes_table.add_row(
-        "professional",
-        "aspose-words (license required)",
-        "Enhanced + advanced formatting, HTML conversion, citations"
+        "Basic + PDF conversion, page screenshots, HTML export"
     )
     
     console.print(modes_table)
@@ -215,12 +204,7 @@ def info():
     except ImportError:
         deps_table.add_row("PyMuPDF", "[red]✗ Missing[/red]", "Enhanced processing")
     
-    # Check professional dependencies
-    try:
-        import aspose.words
-        deps_table.add_row("aspose-words", "[green]✓ Available[/green]", "Professional processing")
-    except ImportError:
-        deps_table.add_row("aspose-words", "[red]✗ Missing[/red]", "Professional processing")
+
     
     console.print(deps_table)
 

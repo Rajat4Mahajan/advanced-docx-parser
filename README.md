@@ -9,24 +9,23 @@ A powerful and flexible Python library for advanced DOCX document processing wit
 
 ## 🚀 Features
 
-### Core Features (Always Available)
+### Basic Mode (Default)
 - **Hierarchical Content Extraction**: Automatically detects and preserves document structure
 - **Smart Table Processing**: Converts DOCX tables to HTML with styling preservation  
 - **Image Extraction**: Supports embedded images, VML graphics, and flowcharts
 - **Multiple Image Formats**: Handles JPEG, PNG, EMF with automatic format conversion
 - **Content Hierarchy**: Maintains parent-child relationships between sections
 - **Table of Contents Generation**: Automatically builds document TOC from structure
+- **Headers & Footers**: Extract unique headers and footers from document
+- **Endnotes Processing**: Extract and process document endnotes
 
-### Enhanced Features (with `enhanced` extras)
-- **Page Screenshot Generation**: Convert document pages to images
-- **Page Number Mapping**: Map content sections to specific page numbers
+### Enhanced Mode (with LibreOffice integration)
+- **All Basic Mode Features**: Everything from basic mode plus:
 - **PDF Conversion**: Convert DOCX to PDF using LibreOffice
-
-### Professional Features (with `professional` extras)
-- **Advanced Formatting Preservation**: Superscript citations, colored text, complex styling
-- **Heading Standardization**: Normalize custom heading styles to standard formats
-- **HTML Output**: High-fidelity HTML conversion with embedded images
-- **Enterprise-grade Processing**: Handle complex corporate document structures
+- **Page Screenshot Generation**: Convert document pages to PNG images
+- **Page Number Mapping**: Map content sections to specific page numbers  
+- **HTML Export**: Generate clean HTML representation of document content
+- **Graceful Fallbacks**: Works without LibreOffice (disables PDF-based features)
 
 ## 📦 Installation
 
@@ -41,14 +40,13 @@ pip install docx-processor
 
 ### With Enhanced Features
 ```bash
-# Includes LibreOffice integration for PDF conversion and page screenshots
+# Includes PyMuPDF for PDF processing and LibreOffice integration
 uv add "docx-processor[enhanced]"
-```
 
-### With Professional Features  
-```bash
-# Includes Aspose.Words for advanced formatting (license required)
-uv add "docx-processor[professional]"
+# Don't forget to install LibreOffice for PDF conversion features:
+# Ubuntu/Debian: sudo apt-get install libreoffice
+# macOS: brew install --cask libreoffice  
+# Windows: Download from https://www.libreoffice.org/
 ```
 
 ### All Features
@@ -62,14 +60,17 @@ uv add "docx-processor[all]"
 ### Command Line Interface
 
 ```bash
-# Basic processing
+# Basic processing (headers/footers, endnotes, images, tables)
 docx-processor process document.docx --output ./output
 
-# Enhanced processing with page screenshots
-docx-processor process document.docx --output ./output --mode enhanced
+# Enhanced processing with HTML generation
+docx-processor process document.docx --output ./output --mode enhanced --html
 
-# Professional processing with advanced formatting
-docx-processor process document.docx --output ./output --mode professional
+# Enhanced processing with PDF conversion and page screenshots
+docx-processor process document.docx --output ./output --mode enhanced --pdf --screenshots
+
+# Check dependency status
+docx-processor info
 ```
 
 ### Python API
@@ -77,7 +78,7 @@ docx-processor process document.docx --output ./output --mode professional
 ```python
 from docx_processor import DOCXProcessor
 
-# Basic usage
+# Basic processing
 processor = DOCXProcessor()
 result = processor.process_file("document.docx")
 
@@ -86,51 +87,54 @@ print(result.content)  # Hierarchical content dictionary
 print(result.images)   # Extracted images
 print(result.tables)   # HTML tables
 print(result.toc)      # Table of contents
+print(result.headers_footers)  # Headers and footers
+print(result.endnotes)  # Document endnotes
 
-# Enhanced processing
-processor = DOCXProcessor(mode="enhanced")
-result = processor.process_file("document.docx", 
-                               output_dir="./output",
-                               include_page_screenshots=True)
+# Enhanced processing with LibreOffice features
+from docx_processor import ProcessingConfig
 
-# Professional processing  
-processor = DOCXProcessor(mode="professional")
-result = processor.process_file("document.docx",
-                               standardize_headings=True,
-                               preserve_formatting=True,
-                               generate_html=True)
+config = ProcessingConfig(
+    mode="enhanced",
+    generate_html=True,
+    convert_to_pdf=True,
+    generate_page_screenshots=True
+)
+
+processor = DOCXProcessor(mode="enhanced", config=config)
+result = processor.process_file("document.docx", output_dir="./output")
+
+# Access enhanced features
+print(result.html_content)  # HTML representation
+print(result.page_screenshots)  # Page screenshot paths
 ```
 
 ## 📋 Requirements
 
 ### System Requirements
 - Python 3.8+
-- LibreOffice (for enhanced features)
-- Aspose.Words license (for professional features)
+- LibreOffice (optional - for PDF conversion and page screenshots)
 
 ### Dependencies
-- **Core**: `python-docx`, `Pillow`, `BeautifulSoup4`, `fuzzywuzzy`, `pydantic`
-- **Enhanced**: `PyMuPDF` 
-- **Professional**: `aspose-words`
+- **Basic Mode**: `python-docx`, `Pillow`, `BeautifulSoup4`, `fuzzywuzzy`, `pydantic`
+- **Enhanced Mode**: All basic dependencies plus `PyMuPDF`, LibreOffice (system dependency)
 
 ## 🏗️ Architecture
 
-The library is designed with a modular architecture supporting different processing tiers:
+The library is designed with a clean two-tier architecture:
 
 ```
 ┌─────────────────────────────────────┐
-│          Professional Mode          │  
-│     (Aspose.Words Integration)      │
-├─────────────────────────────────────┤
 │           Enhanced Mode             │
-│     (LibreOffice Integration)       │  
+│   (LibreOffice + PyMuPDF Features) │  
 ├─────────────────────────────────────┤
 │            Basic Mode               │
 │      (Pure Python Processing)      │
 └─────────────────────────────────────┘
 ```
 
-Each tier builds upon the previous one, ensuring you only need the dependencies for features you actually use.
+- **Basic Mode**: Self-contained with pure Python dependencies
+- **Enhanced Mode**: Builds on Basic Mode with optional LibreOffice integration
+- **Graceful Degradation**: Enhanced mode falls back gracefully when LibreOffice unavailable
 
 ## 📖 Documentation
 

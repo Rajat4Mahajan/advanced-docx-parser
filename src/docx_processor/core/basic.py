@@ -79,6 +79,14 @@ class BasicProcessor:
             if config.save_tables:
                 tables_dict = self._process_tables(table_dict, config.output_dir)
             
+            # Extract headers and footers
+            headers_footers = {}
+            if config.include_headers_footers:
+                headers_footers = self._extract_headers_footers(doc)
+            
+            # Extract endnotes
+            endnotes = self._extract_endnotes(doc)
+            
             # Build TOC if requested
             toc_entries = None
             if config.extract_toc and toc:
@@ -95,6 +103,8 @@ class BasicProcessor:
                 images=images_dict,
                 tables=tables_dict,
                 toc=toc_entries,
+                headers_footers=headers_footers,
+                endnotes=endnotes,
                 processing_mode=ProcessingMode.BASIC
             )
             
@@ -618,6 +628,131 @@ class BasicProcessor:
             self.logger.error(f"Error extracting VML image: {e}")
             return None
     
+    def _extract_headers_footers(self, doc: Document) -> Dict[str, Any]:
+        """
+        Extract headers and footers from all sections of the document.
+        Based on the original DOCXProcessor.extract_header_footer_content method.
+        """
+        headers_footers = {
+            "headers": {},
+            "footers": {},
+            "unique_headers": set(),
+            "unique_footers": set()
+        }
+        
+        try:
+            for section_idx, section in enumerate(doc.sections):
+                section_name = f"section_{section_idx + 1}"
+                
+                # Extract header content
+                header_content = ""
+                if section.header:
+                    for paragraph in section.header.paragraphs:
+                        if paragraph.text.strip():
+                            header_content += paragraph.text + "\n"
+                
+                # Extract footer content  
+                footer_content = ""
+                if section.footer:
+                    for paragraph in section.footer.paragraphs:
+                        if paragraph.text.strip():
+                            footer_content += paragraph.text + "\n"
+                
+                # Store section-specific content
+                headers_footers["headers"][section_name] = header_content.strip()
+                headers_footers["footers"][section_name] = footer_content.strip()
+                
+                # Track unique content to avoid repetition
+                if header_content.strip():
+                    headers_footers["unique_headers"].add(header_content.strip())
+                if footer_content.strip():
+                    headers_footers["unique_footers"].add(footer_content.strip())
+            
+            # Convert sets to lists for JSON serialization
+            headers_footers["unique_headers"] = list(headers_footers["unique_headers"])
+            headers_footers["unique_footers"] = list(headers_footers["unique_footers"])
+            
+            self.logger.debug(f"Extracted headers from {len(headers_footers['headers'])} sections")
+            self.logger.debug(f"Found {len(headers_footers['unique_headers'])} unique headers")
+            self.logger.debug(f"Found {len(headers_footers['unique_footers'])} unique footers")
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting headers/footers: {e}")
+        
+        return headers_footers
+    
+    def _extract_endnotes(self, doc: Document) -> Dict[str, str]:
+        """
+        Extract endnotes from the document.
+        Based on the original DOCXProcessor.get_all_endnotes method.
+        """
+        endnotes = {}
+        endnotes_text = ""
+        
+        try:
+            # Access the document's XML to find endnotes
+            from docx.oxml.ns import qn
+            
+            # Look for endnotes in the document part
+            if hasattr(doc.part, 'package') and doc.part.package:
+                for part in doc.part.package.parts:
+                    if 'endnotes' in part.partname:
+                        # Parse endnotes XML
+                        endnotes_xml = part.blob
+                        if endnotes_xml:
+                            endnotes_text = self._parse_endnotes_xml(endnotes_xml)
+                            break
+            
+            # If we found endnotes, organize them
+            if endnotes_text:
+                endnotes["raw_endnotes"] = endnotes_text
+                endnotes["formatted_endnotes"] = self._format_endnotes(endnotes_text)
+                self.logger.debug(f"Extracted endnotes content: {len(endnotes_text)} characters")
+            else:
+                self.logger.debug("No endnotes found in document")
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting endnotes: {e}")
+        
+        return endnotes
+    
+    def _parse_endnotes_xml(self, endnotes_xml: bytes) -> str:
+        """Parse endnotes XML content to extract text."""
+        try:
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(endnotes_xml)
+            
+            # Extract text from all text elements
+            text_content = []
+            for text_elem in root.iter():
+                if text_elem.tag.endswith('}t') and text_elem.text:  # w:t elements
+                    text_content.append(text_elem.text)
+            
+            return '\n'.join(text_content)
+        except Exception as e:
+            self.logger.error(f"Error parsing endnotes XML: {e}")
+            return ""
+    
+    def _format_endnotes(self, endnotes_text: str) -> str:
+        """Format endnotes text for better readability."""
+        if not endnotes_text:
+            return ""
+        
+        # Basic formatting - could be enhanced based on needs
+        lines = endnotes_text.split('\n')
+        formatted_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line:
+                # Add some basic formatting for numbered references
+                if line and line[0].isdigit():
+                    formatted_lines.append(f"\n{line}")
+                else:
+                    formatted_lines.append(line)
+        
+        return '\n'.join(formatted_lines).strip()
+    
     def _process_tables(self, table_dict: Dict[str, str], output_dir: Optional[Path]) -> Dict[str, TableInfo]:
         """Process and save tables."""
         tables_info = {}
@@ -678,10 +813,36 @@ class BasicProcessor:
                 content_without_children_path = output_dir / "content_without_children.json"
                 with open(content_without_children_path, "w", encoding="utf-8") as f:
                     json.dump(result.content_without_children, f, indent=2, ensure_ascii=False)
+            
+            # Save headers and footers
+            if result.headers_footers:
+                headers_footers_path = output_dir / "headers_footers.json"
+                with open(headers_footers_path, "w", encoding="utf-8") as f:
+                    json.dump(result.headers_footers, f, indent=2, ensure_ascii=False)
+            
+            # Save endnotes
+            if result.endnotes:
+                endnotes_path = output_dir / "endnotes.json"
+                with open(endnotes_path, "w", encoding="utf-8") as f:
+                    json.dump(result.endnotes, f, indent=2, ensure_ascii=False)
+            
+            # Save HTML content (enhanced mode)
+            if result.html_content:
+                html_path = output_dir / "content.html"
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(result.html_content)
         
         # Update result with output paths
         result.output_paths = {
             "content": output_dir / "content.json",
             "images": output_dir / "images",
-            "tables": output_dir / "tables"
+            "tables": output_dir / "tables",
+            "headers_footers": output_dir / "headers_footers.json",
+            "endnotes": output_dir / "endnotes.json"
         }
+        
+        # Add enhanced mode output paths if available
+        if result.html_content:
+            result.output_paths["html"] = output_dir / "content.html"
+        if result.page_screenshots:
+            result.output_paths["pages"] = output_dir / "pages"

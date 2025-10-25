@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field, ConfigDict, validator
 class ProcessingMode(str, Enum):
     """Available processing modes."""
     BASIC = "basic"
-    ENHANCED = "enhanced" 
-    PROFESSIONAL = "professional"
+    ENHANCED = "enhanced"
 
 
 class ProcessingConfig(BaseModel):
@@ -42,12 +41,7 @@ class ProcessingConfig(BaseModel):
     generate_page_screenshots: bool = False
     extract_page_numbers: bool = False
     convert_to_pdf: bool = False
-    
-    # Professional mode options (requires Aspose license)
-    standardize_headings: bool = False
-    preserve_formatting: bool = False
     generate_html: bool = False
-    process_citations: bool = False
     
     # Performance options
     max_pages_to_process: Optional[int] = Field(default=None, ge=1)
@@ -139,13 +133,17 @@ class ProcessingResult(BaseModel):
     # Document structure
     toc: Optional[List[TOCEntry]] = None
     
-    # Enhanced processing results
+    # Enhanced processing results  
     page_screenshots: Optional[Dict[str, str]] = None
     page_numbers: Optional[Dict[str, Dict[str, int]]] = None
-    
-    # Professional processing results
     html_content: Optional[str] = None
     html_content_hierarchy: Optional[Dict[str, str]] = None
+    
+    # Headers and footers
+    headers_footers: Optional[Dict[str, Any]] = None
+    
+    # Endnotes and references
+    endnotes: Optional[Dict[str, str]] = None
     
     # Processing metadata
     processing_mode: ProcessingMode
